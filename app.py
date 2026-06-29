@@ -76,7 +76,7 @@ with st.sidebar:
         """, unsafe_allow_html=True)
     
     st.markdown("---")
-    st.caption(f"© {datetime.now().year} | Ditenagai oleh Streamlit")
+    st.caption(f"© {datetime.now().year} | Powered by Streamlit")
 
 # =====================================================
 # Main Header & Tabs

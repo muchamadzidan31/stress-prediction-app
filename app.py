@@ -35,8 +35,8 @@ occupation_map = {0: "Doctor", 1: "Employee", 2: "Student", 3: "Teacher"}
 # Sidebar Informasi
 # =====================================================
 with st.sidebar:
-    st.image("https://img.icons8.com/illustrations/external-pack-avocado-thb-photos/512/external-Mental-Health-medical-pack-avocado-thb-photos.png", use_container_width=True)
-    st.title("🧠 Tentang Aplikasi")
+    st.markdown("<h1 style='text-align: center; font-size: 80px; margin-bottom: 0;'>🧠</h1>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; margin-top: 0;'>Tentang Aplikasi</h2>", unsafe_allow_html=True)
     st.write(
         """
         Aplikasi **Stress Level Analyzer** ini memanfaatkan *Machine Learning* untuk memprediksi tingkat stres Anda berdasarkan pola hidup digital, 

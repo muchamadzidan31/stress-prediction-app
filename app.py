@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import joblib
+from datetime import datetime
 
 # =====================================================
 # Load Model & Scaler
@@ -20,9 +21,9 @@ except Exception as e:
 # Konfigurasi Halaman
 # =====================================================
 st.set_page_config(
-    page_title="Stress Level Analyzer",
+    page_title="Stress Level Analyzer PRO",
     page_icon="🧠",
-    layout="wide"  # Mengubah ke wide agar layout kolom lebih leluasa
+    layout="wide"
 )
 
 # =====================================================
@@ -32,36 +33,34 @@ gender_map = {0: "Perempuan", 1: "Laki-laki"}
 occupation_map = {0: "Doctor", 1: "Employee", 2: "Student", 3: "Teacher"}
 
 # =====================================================
-# Sidebar Informasi
+# Sidebar Informasi (Menggunakan Emoji yang Aman)
 # =====================================================
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; font-size: 80px; margin-bottom: 0;'>🧠</h1>", unsafe_allow_html=True)
-    st.markdown("<h2 style='text-align: center; margin-top: 0;'>Tentang Aplikasi</h2>", unsafe_allow_html=True)
+    st.markdown("<h2 style='text-align: center; margin-top: 0;'>Stress Analyzer v2.0</h2>", unsafe_allow_html=True)
     st.write(
         """
-        Aplikasi **Stress Level Analyzer** ini memanfaatkan *Machine Learning* untuk memprediksi tingkat stres Anda berdasarkan pola hidup digital, 
-        kualitas tidur, dan aktivitas harian.
+        Aplikasi ini menggunakan algoritma *Machine Learning* untuk mendeteksi tingkat stres berdasarkan aktivitas digital dan pola tidur Anda.
         """
     )
     st.markdown("---")
-    st.caption("Dibuat dengan ❤️ menggunakan Streamlit.")
+    st.caption(f"© {datetime.now().year} | Ditenagai oleh Streamlit")
 
 # =====================================================
 # Main Header & Tabs
 # =====================================================
-st.title("🧠 Stress Level Analyzer & Predictor")
-st.write("Kenali kondisi kesehatan mental Anda melalui analisis kebiasaan harian.")
+st.title("🧠 Stress Level Analyzer & Health Tracker")
+st.write("Kenali kondisi kesehatan mental dan kebiasaan digital Anda secara mendalam.")
 
-tab1, tab2 = st.tabs(["📊 Prediksi Stres", "💡 Tips Manajemen Stres"])
+# MENAMBAHKAN TAB BARU: "🔍 Cek Rasio Digital"
+tab1, tab2, tab3 = st.tabs(["📊 Prediksi Stres", "🔍 Cek Rasio Digital", "💡 Tips Manajemen Stres"])
 
 # =====================================================
-# TAB 1: PREDIKSI STRES
+# TAB 1: PREDIKSI STRES & DOWNLOAD REPORT
 # =====================================================
 with tab1:
     st.subheader("📝 Pengisian Data Harian")
-    st.info("Silakan isi data di bawah ini dengan kondisi yang paling mendekati rutinitas Anda sehari-hari.")
     
-    # Membuat 3 kolom untuk form input agar lebih ringkas dan rapi
     col1, col2, col3 = st.columns(3)
     
     with col1:
@@ -86,91 +85,116 @@ with tab1:
 
     st.markdown("---")
 
-    # Tombol Prediksi besar di tengah
     if st.button("🔍 Mulai Analisis Tingkat Stress", use_container_width=True, type="primary"):
-        
-        # Validasi pembagian dengan nol
         ratio = screen / sleep if sleep > 0 else screen / 0.1
         
         data = pd.DataFrame({
-            "age": [age],
-            "gender": [gender],
-            "occupation": [occupation],
-            "daily_screen_time_hours": [screen],
-            "phone_usage_before_sleep_minutes": [phone],
-            "sleep_duration_hours": [sleep],
-            "sleep_quality_score": [quality],
-            "caffeine_intake_cups": [coffee],
-            "physical_activity_minutes": [physical],
-            "notifications_received_per_day": [notif],
-            "mental_fatigue_score": [fatigue],
+            "age": [age], "gender": [gender], "occupation": [occupation],
+            "daily_screen_time_hours": [screen], "phone_usage_before_sleep_minutes": [phone],
+            "sleep_duration_hours": [sleep], "sleep_quality_score": [quality],
+            "caffeine_intake_cups": [coffee], "physical_activity_minutes": [physical],
+            "notifications_received_per_day": [notif], "mental_fatigue_score": [fatigue],
             "screen_sleep_ratio": [ratio]
         })
 
-        # Proses Prediksi
         data_scaled = scaler.transform(data)
         pred = model.predict(data_scaled)[0]
 
-        # Tampilan Hasil Masuk ke dalam container khusus
         with st.container(border=True):
             st.subheader("📊 Hasil Analisis Kesehatan Mental")
             
-            # Menentukan kategori dan warna visual
             if pred < 4.0:
                 kategori = "Rendah 😊"
                 warna_box = st.success
-                delta_info = "Kondisi Anda sangat baik!"
+                delta_info = "Kondisi Anda aman!"
             elif pred < 7.0:
                 kategori = "Sedang 😐"
                 warna_box = st.warning
-                delta_info = "Perlu sedikit relaksasi."
+                delta_info = "Perlu waspada & relaksasi."
             else:
                 kategori = "Tinggi 😟"
                 warna_box = st.error
-                delta_info = "Sangat disarankan untuk beristirahat."
+                delta_info = "Butuh istirahat segera!"
 
-            # Tampilan Ringkasan dengan Metric Layout
             res_col1, res_col2 = st.columns(2)
             with res_col1:
                 st.metric(label="Skor Prediksi Stres (Skala 0-10)", value=f"{pred:.2f}")
             with res_col2:
                 st.metric(label="Kategori Stres Anda", value=kategori, delta=delta_info, delta_color="off")
 
-            # Pesan Kotak Berwarna sesuai Kategori
-            warna_box(f"Berdasarkan analisis, tingkat stres Anda masuk dalam kategori **{kategori.split()[0]}**.")
+            warna_box(f"Berdasarkan analisis model, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
 
-            # Menampilkan Ringkasan Data Input Pembaca
-            with st.expander("🔎 Lihat Detail Data yang Anda Masukkan"):
-                tampil = data.copy()
-                tampil["gender"] = gender_map[gender]
-                tampil["occupation"] = occupation_map[occupation]
-                st.dataframe(tampil, use_container_width=True)
+            # FITUR BARU: REKOMENDASI DINAMIS BERDASARKAN INPUT USER
+            st.markdown("### 🛠️ Rekomendasi Khusus Untuk Anda:")
+            rekomendasi_ada = False
+            if coffee > 4:
+                st.warning("⚠️ **Konsumsi Kafein Tinggi**: Kurangi minum kopi di atas jam 2 siang agar tidak mengganggu fase tidur dalam (*deep sleep*).")
+                rekomendasi_ada = True
+            if phone > 60:
+                st.warning("⚠️ **Paparan Blue Light Berlebih**: Batasi main HP maksimal 30 menit sebelum tidur untuk meningkatkan hormon melatonin.")
+                rekomendasi_ada = True
+            if physical < 20:
+                st.info("💡 **Kurang Gerak**: Coba luangkan waktu berjalan kaki 15 menit hari ini untuk membantu mereduksi hormon kortisol (stres).")
+                rekomendasi_ada = True
+            if not rekomendasi_ada:
+                st.success("✅ Kebiasaan harian Anda secara umum sudah cukup seimbang!")
+
+            # FITUR BARU: DOWNLOAD REPORT DALAM BENTUK TEKS
+            report_text = f"""=== LAPORAN ANALISIS TINGKAT STRES ===
+Tanggal Analisis : {datetime.now().strftime('%Y-%m-%d %H:%M')}
+Skor Prediksi    : {pred:.2f}
+Kategori Stres   : {kategori.split()[0]}
+-------------------------------------
+DATA INPUT:
+- Usia           : {age} Tahun
+- Screen Time    : {screen} Jam/Hari
+- Durasi Tidur   : {sleep} Jam
+- Kualitas Tidur : {quality}/100
+====================================="""
+            
+            st.markdown("---")
+            st.download_button(
+                label="📥 Unduh Laporan Hasil (.txt)",
+                data=report_text,
+                file_name=f"Stress_Report_{datetime.now().strftime('%Y%m%d')}.txt",
+                mime="text/plain",
+                use_container_width=True
+            )
 
 # =====================================================
-# TAB 2: TIPS MANAJEMEN STRES
+# FITUR BARU - TAB 2: CEK RASIO DIGITAL (KALKULATOR)
 # =====================================================
 with tab2:
-    st.subheader("💡 Tips Praktis Mengurangi Stres")
-    st.write("Berikut beberapa langkah kecil yang bisa Anda lakukan berdasarkan riset kesehatan:")
+    st.subheader("🔍 Kalkulator Rasio Screen Time vs Waktu Tidur")
+    st.write("Fitur ini menganalisis apakah durasi menatap layar Anda lebih mendominasi daripada waktu tubuh Anda beristirahat.")
     
+    # Hitung rasio langsung dari slider tab 1
+    current_ratio = screen / sleep if sleep > 0 else 0
+    
+    st.write(f"Rasio Anda saat ini: **{current_ratio:.2f}**")
+    
+    if current_ratio <= 1.0:
+        st.success("✅ **Rasio Sehat**: Waktu tidur Anda lebih banyak atau seimbang dengan waktu melihat layar. Pertahankan!")
+    elif current_ratio <= 1.5:
+        st.warning("⚠️ **Rasio Lampu Kuning**: Waktu menatap layar sudah mulai melampaui waktu tidur Anda. Kurangi aktivitas digital non-esensial.")
+    else:
+        st.error("🚨 **Rasio Tidak Sehat**: Waktu *screen time* Anda jauh lebih tinggi daripada durasi istirahat. Ini adalah pemicu utama kelelahan mental.")
+
+# =====================================================
+# TAB 3: TIPS MANAJEMEN STRES
+# =====================================================
+with tab3:
+    st.subheader("💡 Tips Praktis Mengurangi Stres")
     t_col1, t_col2 = st.columns(2)
     with t_col1:
         st.markdown("""
         #### 📱 Detoks Digital
         * **Batasi Screen Time**: Kurangi penggunaan HP minimal 30 menit sebelum tidur.
-        * **Filter Notifikasi**: Matikan notifikasi aplikasi yang tidak mendesak agar fokus terjaga.
-        
-        #### 🛌 Optimalkan Tidur
-        * Pertahankan durasi tidur ideal **7-8 jam** per hari.
-        * Buat suasana kamar sejuk, gelap, dan tenang untuk menaikkan *Sleep Quality Score*.
+        * **Filter Notifikasi**: Matikan notifikasi aplikasi yang tidak mendesak.
         """)
-        
     with t_col2:
         st.markdown("""
-        #### 🧘 Kesehatan Fisik & Mental
-        * Lakukan aktivitas fisik ringan (seperti jalan kaki atau peregangan) selama **15-30 menit** sehari.
-        * Batasi asupan kafein, terutama di sore dan malam hari.
-        
-        #### ☕ Mindful Break
-        * Jika *Mental Fatigue Score* Anda tinggi, terapkan teknik **Pomodoro** (25 menit kerja, 5 menit istirahat) saat beraktivitas atau bekerja.
+        #### 🛌 Optimalkan Tidur
+        * Pertahankan durasi tidur ideal **7-8 jam** per hari.
+        * Buat suasana kamar sejuk, gelap, dan tenang.
         """)

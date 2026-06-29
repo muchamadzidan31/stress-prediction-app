@@ -21,12 +21,11 @@ except Exception as e:
 # Konfigurasi Halaman & Suntikan Custom CSS
 # =====================================================
 st.set_page_config(
-    page_title="Stress Level Analyzer Ultra",
+    page_title="Stress Level Analyzer",
     page_icon="🧠",
     layout="wide"
 )
 
-# Suntikan CSS untuk mempercantik UI, tombol, dan metrik
 st.markdown("""
     <style>
     .main { background-color: #f8f9fa; }
@@ -57,21 +56,22 @@ gender_map = {0: "Perempuan", 1: "Laki-laki"}
 occupation_map = {0: "Doctor", 1: "Employee", 2: "Student", 3: "Teacher"}
 
 # =====================================================
-# Sidebar Informasi & Anggota Kelompok (Lebih Ringkas)
+# Sidebar Informasi & Anggota Kelompok
 # =====================================================
 with st.sidebar:
     st.markdown("<h1 style='text-align: center; font-size: 60px; margin-bottom: 0;'>🧠</h1>", unsafe_allow_html=True)
-    st.markdown("<h3 style='text-align: center; margin-top: 0; color: #4b6cb7;'>Stress Analyzer Pro</h3>", unsafe_allow_html=True)
-    st.write("Platform cerdas berbasis *Machine Learning* untuk mendeteksi dini kelelahan mental akibat pola aktivitas digital.")
+    # Judul diperbarui sesuai permintaan
+    st.markdown("<h3 style='text-align: center; margin-top: 0; color: #4b6cb7;'>Stress Level Analyzer</h3>", unsafe_allow_html=True)
+    # Deskripsi disesuaikan agar lebih padat dan elegan
+    st.write("Sistem analisis kesehatan mental berbasis kecerdasan buatan untuk mengevaluasi tingkat stres harian Anda.")
     
     st.markdown("---")
     
-    # Menggunakan Expander agar nama kelompok tersimpan rapi
     with st.sidebar.expander("👥 Anggota Kelompok (NBI)", expanded=True):
         st.markdown("""
         * **Mochammad Hidayatulloh A.** <br><code style='color:#4b6cb7;'>1462400044</code>
         * **Delphi Raida Althafiyani** <br><code style='color:#4b6cb7;'>1462400072</code>
-        * **Iqbal Babussalam** <br><code style='color:#4b6cb7;'>1462400104</code>
+        * **Iqbal Babussalam** <br><code style='color:#4b6cb7;'>14624000104</code>
         * **Muchamad Zidan Amirulloh** <br><code style='color:#4b6cb7;'>1462400178</code>
         """, unsafe_allow_html=True)
     
@@ -136,7 +136,6 @@ with tab1:
         data_scaled = scaler.transform(data)
         pred = model.predict(data_scaled)[0]
 
-        # Container Hasil Prediksi Premium
         with st.container(border=True):
             st.markdown("### 📊 Hasil Analisis Tingkat Stres")
             
@@ -156,40 +155,79 @@ with tab1:
             res_col1, res_col2 = st.columns(2)
             with res_col1:
                 st.metric(label="Skor Prediksi Stres (Skala 0-10)", value=f"{pred:.2f}")
-                # FITUR BARU: Mini Progress Bar Indicator
                 st.progress(min(max(pred / 10.0, 0.0), 1.0))
             with res_col2:
                 st.metric(label="Kategori Stres Anda", value=kategori, delta=delta_info, delta_color="off")
 
-            warna_box(f"Berdasarkan analisis model AI kelompok kami, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
+            warna_box(f"Berdasarkan analisis model AI, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
 
-            # Rekomendasi Dinamis
+            # Rekomendasi Dinamis & Pembuatan Teks untuk Laporan
             st.markdown("#### 🛠️ Rekomendasi Personalisasi:")
-            rekomendasi_ada = False
-            if coffee > 4:
-                st.warning("⚠️ **Batasi Kafein**: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak dan memicu kecemasan.")
-                rekomendasi_ada = True
-            if phone > 60:
-                st.warning("⚠️ **Kurangi Screen-Time Malam**: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh.")
-                rekomendasi_ada = True
-            if physical < 20:
-                st.info("💡 **Kurang Aktivitas Fisik**: Sempatkan berolahraga ringan atau sekadar peregangan agar hormon endorfin keluar.")
-                rekomendasi_ada = True
-            if not rekomendasi_ada:
-                st.success("✅ Pola hidup Anda saat ini sudah sangat seimbang!")
-
-            # Ekspor Data
-            report_text = f"""=== LAPORAN STRESS LEVEL ANALYZER ===
-Diperiksa Pada    : {datetime.now().strftime('%Y-%m-%d %H:%M')}
-Skor Prediksi     : {pred:.2f}
-Kategori Stres    : {kategori.split()[0]}
-====================================="""
+            saran_list = []
             
+            if coffee > 4:
+                msg = "- Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak dan memicu kecemasan."
+                st.warning(f"⚠️ {msg[2:]}")
+                saran_list.append(msg)
+            if phone > 60:
+                msg = "- Kurangi Screen-Time Malam: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh."
+                st.warning(f"⚠️ {msg[2:]}")
+                saran_list.append(msg)
+            if physical < 20:
+                msg = "- Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan agar hormon endorfin keluar."
+                st.info(f"💡 {msg[2:]}")
+                saran_list.append(msg)
+                
+            if not saran_list:
+                msg = "- Pola hidup Anda saat ini sudah sangat seimbang! Pertahankan rutinitas baik ini."
+                st.success(f"✅ {msg[2:]}")
+                saran_list.append(msg)
+
+            saran_text = "\n".join(saran_list)
+
+            # FITUR BARU: LAPORAN HASIL .TXT YANG JAUH LEBIH RAPI & PROFESIONAL
+            report_text = f"""=======================================================
+               OFFICIAL MEDICAL REPORT                  
+                STRESS LEVEL ANALYZER                  
+=======================================================
+Waktu Pemeriksaan : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
+Status Prediksi   : SELESAI
+
+[ HASIL ANALISIS UTAMA ]
+-------------------------------------------------------
+* Skor Prediksi Stres : {pred:.2f} / 10.00
+* Kategori Stres      : {kategori.split()[0].upper()}
+
+[ RINGKASAN METRIK AKTIVITAS ]
+-------------------------------------------------------
+- Usia / Gender       : {age} Tahun / {gender_map[gender]}
+- Pekerjaan           : {occupation_map[occupation]}
+- Durasi Layar (HP)   : {screen} Jam/Hari
+- Penggunaan Pra-Tidur: {phone} Menit
+- Durasi & Kual. Tidur: {sleep} Jam (Skor Kualitas: {quality}/100)
+- Rasio Layar/Tidur   : {ratio:.2f}
+- Konsumsi Kafein     : {coffee} Gelas/Hari
+- Aktivitas Fisik     : {physical} Menit/Hari
+- Skor Kelelahan Saraf: {fatigue}/100
+
+[ REKOMENDASI TIM AHLI ]
+-------------------------------------------------------
+{saran_text}
+
+=======================================================
+               TIM PENGUJI (KELOMPOK)                  
+-------------------------------------------------------
+1. Mochammad Hidayatulloh Ardiansyah (1462400044)
+2. Delphi Raida Althafiyani         (1462400072)
+3. Iqbal Babussalam                 (1462400104)
+4. Muchamad Zidan Amirulloh         (1462400178)
+=======================================================
+"""
             st.markdown("---")
             st.download_button(
-                label="📥 Unduh Laporan Resmi Kelompok (.txt)",
+                label="📥 Unduh Laporan Resmi Hasil Pemeriksaan (.txt)",
                 data=report_text,
-                file_name=f"Laporan_Stres_{datetime.now().strftime('%Y%m%d')}.txt",
+                file_name=f"Laporan_Resmi_Stres_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
                 mime="text/plain",
                 use_container_width=True
             )
@@ -229,7 +267,7 @@ with tab3:
         """)
 
 # =====================================================
-# FITUR BARU - TAB 4: TANTANGAN HIDUP SEHAT (INTERAKTIF)
+# TAB 4: TANTANGAN HIDUP SEHAT
 # =====================================================
 with tab4:
     st.subheader("🎯 Self-Care Challenge Hari Ini")

@@ -213,15 +213,6 @@ Status Prediksi   : SELESAI
 [ REKOMENDASI TIM AHLI ]
 -------------------------------------------------------
 {saran_text}
-
-=======================================================
-               TIM PENGUJI (KELOMPOK)                  
--------------------------------------------------------
-1. Mochammad Hidayatulloh Ardiansyah (1462400044)
-2. Delphi Raida Althafiyani         (1462400072)
-3. Iqbal Babussalam                 (1462400104)
-4. Muchamad Zidan Amirulloh         (1462400178)
-=======================================================
 """
             st.markdown("---")
             st.download_button(

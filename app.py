@@ -33,16 +33,28 @@ gender_map = {0: "Perempuan", 1: "Laki-laki"}
 occupation_map = {0: "Doctor", 1: "Employee", 2: "Student", 3: "Teacher"}
 
 # =====================================================
-# Sidebar Informasi (Menggunakan Emoji yang Aman)
+# Sidebar Informasi & Anggota Kelompok
 # =====================================================
 with st.sidebar:
-    st.markdown("<h1 style='text-align: center; font-size: 80px; margin-bottom: 0;'>🧠</h1>", unsafe_allow_html=True)
+    st.markdown("<h1 style='text-align: center; font-size: 70px; margin-bottom: 0;'>🧠</h1>", unsafe_allow_html=True)
     st.markdown("<h2 style='text-align: center; margin-top: 0;'>Stress Analyzer v2.0</h2>", unsafe_allow_html=True)
     st.write(
         """
         Aplikasi ini menggunakan algoritma *Machine Learning* untuk mendeteksi tingkat stres berdasarkan aktivitas digital dan pola tidur Anda.
         """
     )
+    
+    st.markdown("---")
+    
+    # Menampilkan Nama Anggota Kelompok
+    st.markdown("### 👥 Anggota Kelompok:")
+    st.markdown("""
+    * **Mochammad Hidayatulloh A.** <span style='color: gray; font-size: 13px;'>NBI: 1462400044</span>
+    * **Delphi Raida Althafiyani** <span style='color: gray; font-size: 13px;'>NBI: 1462400072</span>
+    * **Iqbal Babussalam** <span style='color: gray; font-size: 13px;'>NBI: 1462400104</span>
+    * **Muchamad Zidan Amirulloh** <span style='color: gray; font-size: 13px;'>NBI: 1462400178</span>
+    """, unsafe_allow_html=True)
+    
     st.markdown("---")
     st.caption(f"© {datetime.now().year} | Ditenagai oleh Streamlit")
 
@@ -52,7 +64,6 @@ with st.sidebar:
 st.title("🧠 Stress Level Analyzer & Health Tracker")
 st.write("Kenali kondisi kesehatan mental dan kebiasaan digital Anda secara mendalam.")
 
-# MENAMBAHKAN TAB BARU: "🔍 Cek Rasio Digital"
 tab1, tab2, tab3 = st.tabs(["📊 Prediksi Stres", "🔍 Cek Rasio Digital", "💡 Tips Manajemen Stres"])
 
 # =====================================================
@@ -124,7 +135,6 @@ with tab1:
 
             warna_box(f"Berdasarkan analisis model, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
 
-            # FITUR BARU: REKOMENDASI DINAMIS BERDASARKAN INPUT USER
             st.markdown("### 🛠️ Rekomendasi Khusus Untuk Anda:")
             rekomendasi_ada = False
             if coffee > 4:
@@ -139,7 +149,6 @@ with tab1:
             if not rekomendasi_ada:
                 st.success("✅ Kebiasaan harian Anda secara umum sudah cukup seimbang!")
 
-            # FITUR BARU: DOWNLOAD REPORT DALAM BENTUK TEKS
             report_text = f"""=== LAPORAN ANALISIS TINGKAT STRES ===
 Tanggal Analisis : {datetime.now().strftime('%Y-%m-%d %H:%M')}
 Skor Prediksi    : {pred:.2f}
@@ -162,15 +171,13 @@ DATA INPUT:
             )
 
 # =====================================================
-# FITUR BARU - TAB 2: CEK RASIO DIGITAL (KALKULATOR)
+# TAB 2: CEK RASIO DIGITAL (KALKULATOR)
 # =====================================================
 with tab2:
     st.subheader("🔍 Kalkulator Rasio Screen Time vs Waktu Tidur")
     st.write("Fitur ini menganalisis apakah durasi menatap layar Anda lebih mendominasi daripada waktu tubuh Anda beristirahat.")
     
-    # Hitung rasio langsung dari slider tab 1
     current_ratio = screen / sleep if sleep > 0 else 0
-    
     st.write(f"Rasio Anda saat ini: **{current_ratio:.2f}**")
     
     if current_ratio <= 1.0:

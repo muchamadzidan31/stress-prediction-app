@@ -2,7 +2,9 @@ import streamlit as st
 import pandas as pd
 import joblib
 from datetime import datetime
+import io  # Tambahan untuk manajemen binary data PDF
 import plotly.graph_objects as go  # Tambahan untuk visualisasi Plotly
+from weasyprint import HTML  # Tambahan untuk engine konverter HTML ke PDF
 
 # =====================================================
 # Load Model & Scaler
@@ -17,6 +19,12 @@ try:
     model, scaler = load_resources()
 except Exception as e:
     st.error(f"Gagal memuat model/scaler. Pastikan file tersedia. Error: {e}")
+
+# =====================================================
+# INSIALISASI SESSION STATE (FITUR BARU RIWAYAT)
+# =====================================================
+if "riwayat_prediksi" not in st.session_state:
+    st.session_state.riwayat_prediksi = []
 
 # =====================================================
 # Konfigurasi Halaman & Suntikan Custom CSS
@@ -47,23 +55,21 @@ st.markdown("""
         font-size: 36px;
         font-weight: 800;
     }
-    /* Style tambahan untuk card dark mode mirip Stressio */
+    /* Style komponen baru ala Stressio */
     .stressio-card {
         background-color: #1e1e2f;
         padding: 20px;
-        border-radius: 12px;
-        color: #ffffff;
+        border-radius: 10px;
+        border: 1px solid #2d2d44;
         margin-bottom: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    .stressio-header {
+        color: #4b6cb7;
+        font-weight: bold;
+        margin-bottom: 10px;
     }
     </style>
 """, unsafe_allow_html=True)
-
-# =====================================================
-# INITIALIZATION: Inisialisasi Riwayat (Session State)
-# =====================================================
-if "prediction_history" not in st.session_state:
-    st.session_state.prediction_history = []
 
 # =====================================================
 # Mapping Data
@@ -106,7 +112,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # =====================================================
-# TAB 1: PREDIKSI STRES & DOWNLOAD REPORT
+# TAB 1: PREDIKSI STRES & DOWNLOAD REPORT (PDF INTEGRATED)
 # =====================================================
 with tab1:
     st.subheader("📝 Pengisian Data Aktivitas Harian")
@@ -135,7 +141,9 @@ with tab1:
 
     st.markdown("---")
 
-    # Memicu proses prediksi
+    # Wadah container utama untuk hasil analisis pasca tombol ditekan
+    output_container = st.container()
+
     if st.button("🔍 Mulai Analisis Tingkat Stress", use_container_width=True):
         ratio = screen / sleep if sleep > 0 else screen / 0.1
         
@@ -151,61 +159,26 @@ with tab1:
         data_scaled = scaler.transform(data)
         pred = model.predict(data_scaled)[0]
 
-        # Simpan state hasil prediksi agar visualisasi & riwayat persisten saat berinteraksi
-        st.session_state["last_pred"] = {
-            "pred": pred, "age": age, "gender": gender, "occupation": occupation, "coffee": coffee,
-            "screen": screen, "phone": phone, "notif": notif, "sleep": sleep, "quality": quality,
-            "physical": physical, "fatigue": fatigue, "ratio": ratio
-        }
-
-        # Kategori Penentuan
-        if pred < 4.0:
-            kategori_murni = "Rendah"
-            kategori = "Rendah 😊"
-        elif pred < 7.0:
-            kategori_murni = "Sedang"
-            kategori = "Sedang 😐"
-        else:
-            kategori_murni = "Tinggi"
-            kategori = "Tinggi 😟"
-
-        # FITUR BARU 1: Menyimpan riwayat ke st.session_state
-        history_entry = {
-            "Waktu": datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-            "Age": age,
-            "Screen Time": screen,
-            "Sleep Duration": sleep,
-            "Sleep Quality": quality,
-            "Mental Fatigue": fatigue,
-            "Prediksi Stress": round(pred, 2),
-            "Kategori": kategori_murni
-        }
-        st.session_state.prediction_history.append(history_entry)
-
-    # Mengecek apakah sudah ada riwayat prediksi sebelumnya untuk ditampilkan
-    if "last_pred" in st.session_state:
-        lp = st.session_state["last_pred"]
-        pred = lp["pred"]
-        
-        if pred < 4.0:
-            kategori = "Rendah 😊"
-            warna_box = st.success
-            delta_info = "Kondisi Anda aman!"
-            kategori_murni = "Rendah"
-        elif pred < 7.0:
-            kategori = "Sedang 😐"
-            warna_box = st.warning
-            delta_info = "Perlu waspada & relaksasi."
-            kategori_murni = "Sedang"
-        else:
-            kategori = "Tinggi 😟"
-            warna_box = st.error
-            delta_info = "Butuh istirahat segera!"
-            kategori_murni = "Tinggi"
-
-        with st.container(border=True):
+        with output_container:
+            st.container(border=True)
             st.markdown("### 📊 Hasil Analisis Tingkat Stres")
             
+            if pred < 4.0:
+                kategori = "Rendah 😊"
+                warna_box = st.success
+                delta_info = "Kondisi Anda aman!"
+                kat_murni = "Rendah"
+            elif pred < 7.0:
+                kategori = "Sedang 😐"
+                warna_box = st.warning
+                delta_info = "Perlu waspada & relaksasi."
+                kat_murni = "Sedang"
+            else:
+                kategori = "Tinggi 😟"
+                warna_box = st.error
+                delta_info = "Butuh istirahat segera!"
+                kat_murni = "Tinggi"
+
             res_col1, res_col2 = st.columns(2)
             with res_col1:
                 st.metric(label="Skor Prediksi Stres (Skala 0-10)", value=f"{pred:.2f}")
@@ -215,246 +188,298 @@ with tab1:
 
             warna_box(f"Berdasarkan analisis model AI, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
 
+            # Rekomendasi Dinamis untuk Pemicu Laporan
             st.markdown("#### 🛠️ Rekomendasi Personalisasi:")
             saran_list = []
+            html_saran = ""
             
-            if lp["coffee"] > 4:
-                msg = "- Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak dan memicu kecemasan."
-                st.warning(f"⚠️ {msg[2:]}")
-                saran_list.append(msg)
-            if lp["phone"] > 60:
-                msg = "- Kurangi Screen-Time Malam: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh."
-                st.warning(f"⚠️ {msg[2:]}")
-                saran_list.append(msg)
-            if lp["physical"] < 20:
-                msg = "- Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan agar hormon endorfin keluar."
-                st.info(f"💡 {msg[2:]}")
-                saran_list.append(msg)
+            if coffee > 4:
+                msg = "Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak dan memicu kecemasan."
+                st.warning(f"⚠️ {msg}")
+                saran_list.append(f"- {msg}")
+                html_saran += f"<li>⚠️ {msg}</li>"
+            if phone > 60:
+                msg = "Kurangi Screen-Time Malam: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh."
+                st.warning(f"⚠️ {msg}")
+                saran_list.append(f"- {msg}")
+                html_saran += f"<li>⚠️ {msg}</li>"
+            if physical < 20:
+                msg = "Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan agar hormon endorfin keluar."
+                st.info(f"💡 {msg}")
+                saran_list.append(f"- {msg}")
+                html_saran += f"<li>💡 {msg}</li>"
                 
             if not saran_list:
-                msg = "- Pola hidup Anda saat ini sudah sangat seimbang! Pertahankan rutinitas baik ini."
-                st.success(f"✅ {msg[2:]}")
-                saran_list.append(msg)
+                msg = "Pola hidup Anda saat ini sudah sangat seimbang! Pertahankan rutinitas baik ini."
+                st.success(f"✅ {msg}")
+                saran_list.append(f"- {msg}")
+                html_saran += f"<li>✅ {msg}</li>"
 
-            saran_text = "\n".join(saran_list)
+            # 1. SIMPAN DATA KE RIWAYAT SESSION STATE
+            waktu_sekarang = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+            data_riwayat = {
+                "Waktu": waktu_sekarang,
+                "Age": age,
+                "Screen Time": f"{screen} Jam",
+                "Sleep Duration": f"{sleep} Jam",
+                "Sleep Quality": quality,
+                "Mental Fatigue": fatigue,
+                "Prediksi Stress": round(pred, 2),
+                "Kategori": kat_murni
+            }
+            st.session_state.riwayat_prediksi.append(data_riwayat)
 
-            # Pembuatan Dokumen Laporan .txt
-            report_text = f"""=======================================================
-               OFFICIAL MEDICAL REPORT                    
-                STRESS LEVEL ANALYZER                  
-=======================================================
-Waktu Pemeriksaan : {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}
-Status Prediksi   : SELESAI
+            # 2. PROSES PEMBUATAN LAPORAN PDF (INTEGRASI WEASYPRINT & HTML)
+            html_report = f"""
+            <!DOCTYPE html>
+            <html>
+            <head>
+            <meta charset="utf-8">
+            <style>
+                @page {{
+                    size: A4;
+                    margin: 20mm 15mm;
+                    background-color: #1e1e2f;
+                }}
+                body {{
+                    font-family: 'Helvetica Neue', Arial, sans-serif;
+                    color: #ffffff;
+                    background-color: #1e1e2f;
+                    margin: 0; padding: 0;
+                }}
+                .header {{
+                    border-bottom: 2px solid #4b6cb7;
+                    padding-bottom: 12px; margin-bottom: 20px;
+                }}
+                .title {{ font-size: 24pt; font-weight: bold; color: #4b6cb7; text-transform: uppercase; letter-spacing: 1px; }}
+                .meta-box {{ background-color: #2d2d44; border-radius: 8px; padding: 15px; margin-bottom: 25px; }}
+                .meta-table {{ width: 100%; border-collapse: collapse; }}
+                .meta-table td {{ padding: 6px; font-size: 10pt; }}
+                .meta-label {{ color: #a0a0b0; font-weight: bold; width: 30%; }}
+                .section-title {{ font-size: 14pt; color: #4b6cb7; border-left: 4px solid #4b6cb7; padding-left: 8px; margin: 25px 0 12px 0; font-weight: bold; }}
+                .metric-table {{ width: 100%; border-collapse: collapse; }}
+                .metric-table th {{ background-color: #4b6cb7; color: white; padding: 10px; font-size: 10pt; text-align: left; }}
+                .metric-table td {{ padding: 10px; border-bottom: 1px solid #2d2d44; font-size: 10pt; }}
+                .metric-table tr:nth-child(even) {{ background-color: #252538; }}
+                .badge {{ background-color: #ff4d4d; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; }}
+                .recommendation-box {{ background-color: #252538; padding: 15px; border-radius: 8px; font-size: 10pt; line-height: 1.6; }}
+                .recommendation-box ul {{ margin: 0; padding-left: 20px; }}
+                .footer {{ margin-top: 50px; text-align: center; font-size: 8.5pt; color: #a0a0b0; border-top: 1px solid #2d2d44; padding-top: 15px; }}
+            </style>
+            </head>
+            <body>
+                <div class="header">
+                    <div class="title">Official Medical Report</div>
+                    <div style="color: #a0a0b0; font-size: 11pt; margin-top: 5px;">Stress Level Analyzer & Health Dashboard</div>
+                </div>
 
-[ HASIL ANALISIS UTAMA ]
--------------------------------------------------------
-* Skor Prediksi Stres : {pred:.2f} / 10.00
-* Kategori Stres      : {kategori.split()[0].upper()}
+                <div class="meta-box">
+                    <table class="meta-table">
+                        <tr>
+                            <td class="meta-label">Waktu Pemeriksaan</td>
+                            <td>: {waktu_sekarang}</td>
+                            <td class="meta-label">Skor Prediksi Stres</td>
+                            <td>: <strong style="color: #ff4d4d;">{pred:.2f} / 10.00</strong></td>
+                        </tr>
+                        <tr>
+                            <td class="meta-label">Status Prediksi</td>
+                            <td>: SELESAI</td>
+                            <td class="meta-label">Kategori Stres</td>
+                            <td>: <span class="badge">{kat_murni.upper()}</span></td>
+                        </tr>
+                    </table>
+                </div>
 
-[ RINGKASAN METRIK AKTIVITAS ]
--------------------------------------------------------
-- Usia / Gender       : {lp['age']} Tahun / {gender_map[lp['gender']]}
-- Pekerjaan           : {occupation_map[lp['occupation']]}
-- Durasi Layar (HP)   : {lp['screen']} Jam/Hari
-- Penggunaan Pra-Tidur: {lp['phone']} Menit
-- Durasi & Kual. Tidur: {lp['sleep']} Jam (Skor Kualitas: {lp['quality']}/100)
-- Rasio Layar/Tidur   : {lp['ratio']:.2f}
-- Konsumsi Kafein     : {lp['coffee']} Gelas/Hari
-- Aktivitas Fisik     : {lp['physical']} Menit/Hari
-- Skor Kelelahan Saraf: {lp['fatigue']}/100
+                <div class="section-title">Ringkasan Metrik Aktivitas</div>
+                <table class="metric-table">
+                    <thead>
+                        <tr>
+                            <th>Komponen Komparasi Kesehatan</th>
+                            <th>Nilai Input Pengguna</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td>Usia / Jenis Kelamin</td><td>{age} Tahun / {gender_map[gender]}</td></tr>
+                        <tr><td>Bidang Pekerjaan</td><td>{occupation_map[occupation]}</td></tr>
+                        <tr><td>Durasi Layar harian (Screen Time)</td><td>{screen} Jam / Hari</td></tr>
+                        <tr><td>Interaksi Gawai Pra-Tidur</td><td>{phone} Menit</td></tr>
+                        <tr><td>Durasi & Efisiensi Tidur</td><td>{sleep} Jam (Skor Kualitas: {quality}/100)</td></tr>
+                        <tr><td>Rasio Paparan Layar vs Istirahat</td><td>{ratio:.2f}</td></tr>
+                        <tr><td>Intake Kafein Harian</td><td>{coffee} Gelas / Hari</td></tr>
+                        <tr><td>Alokasi Aktivitas Fisik</td><td>{physical} Menit / Hari</td></tr>
+                        <tr><td>Skor Kelelahan Saraf Kognitif</td><td>{fatigue} / 100</td></tr>
+                    </tbody>
+                </table>
 
-[ REKOMENDASI TIM AHLI ]
--------------------------------------------------------
-{saran_text}
-"""
+                <div class="section-title">Workplace Insight & Saran Tim Medis</div>
+                <div class="recommendation-box">
+                    <ul>{html_saran}</ul>
+                </div>
+
+                <div class="footer">
+                    Laporan evaluasi psikometrik digital ini diekstrak otomatis oleh Stress Level Analyzer.<br>
+                    Tim Akademis NBI: 1462400044, 1462400072, 14624000104, 1462400178.
+                </div>
+            </body>
+            </html>
+            """
+            # Pemrosesan konversi HTML ke berkas biner PDF via byte buffer
+            pdf_buffer = io.BytesIO()
+            HTML(string=html_report).write_pdf(pdf_buffer)
+            pdf_data = pdf_buffer.getvalue()
+
             st.markdown("---")
             st.download_button(
-                label="📥 Unduh Laporan Resmi Hasil Pemeriksaan (.txt)",
-                data=report_text,
-                file_name=f"Laporan_Resmi_Stres_{datetime.now().strftime('%Y%m%d_%H%M')}.txt",
-                mime="text/plain",
+                label="📥 Unduh Laporan Resmi Hasil Pemeriksaan (.pdf)",
+                data=pdf_data,
+                file_name=f"Laporan_Resmi_Stres_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+                mime="application/pdf",
                 use_container_width=True
             )
 
-        # =====================================================
-        # FITUR BARU 2: VISUALISASI INPUT USER (PLOTLY RADAR & BAR)
-        # =====================================================
-        st.markdown("---")
-        st.markdown("### 📈 Visualisasi Fitur Aktivitas")
-        
-        # Penyiapan Data Fitur
-        labels = [
-            'Screen Time (Hr)', 'Phone Before Sleep (Min)', 'Sleep Duration (Hr)', 
-            'Sleep Quality (Score)', 'Caffeine Intake (Cup)', 'Physical Activity (Min)', 
-            'Notification/Day', 'Mental Fatigue (Score)'
-        ]
-        values = [
-            lp["screen"], lp["phone"], lp["sleep"], 
-            lp["quality"], lp["coffee"], lp["physical"], 
-            lp["notif"], lp["fatigue"]
-        ]
-        
-        v_col1, v_col2 = st.columns(2)
-        
-        with v_col1:
-            # 1. Radar Chart Plotly (Tema Dark)
-            fig_radar = go.Figure()
-            fig_radar.add_trace(go.Scatterpolar(
-                r=values + [values[0]],
-                theta=labels + [labels[0]],
-                fill='toself',
-                fillcolor='rgba(75, 108, 183, 0.3)',
-                line=dict(color='#4b6cb7', width=2),
-                name='Metrik Aktivitas'
-            ))
-            fig_radar.update_layout(
-                polar=dict(
-                    radialaxis=dict(visible=True, gridcolor='#44445c'),
-                    angularaxis=dict(gridcolor='#44445c')
-                ),
-                paper_bgcolor='#1e1e2f',
-                plot_bgcolor='#1e1e2f',
-                font=dict(color='#ffffff'),
-                margin=dict(t=40, b=40, l=40, r=40),
-                title=dict(text="Radar Chart Karakteristik Gaya Hidup", x=0.5, font=dict(size=16))
-            )
-            st.plotly_chart(fig_radar, use_container_width=True)
-            
-        with v_col2:
-            # 2. Bar Chart Plotly (Tema Dark)
-            fig_bar = go.Figure()
-            fig_bar.add_trace(go.Bar(
-                x=labels,
-                y=values,
-                marker=dict(
-                    color=values,
-                    colorscale='Cividis',
-                    line=dict(color='#182848', width=1)
+            # =====================================================
+            # FITUR BARU: VISUALISASI INTERAKTIF PLOTLY
+            # =====================================================
+            st.markdown("### 📊 Visualisasi Profil Kesehatan Anda")
+            vis_col1, vis_col2 = st.columns(2)
+
+            features = [
+                'Screen Time', 'Phone Before Sleep', 'Sleep Duration', 
+                'Sleep Quality', 'Caffeine Intake', 'Physical Activity', 
+                'Notifications/Day', 'Mental Fatigue'
+            ]
+            # Normalisasi seimbang khusus radar chart agar skala 0-100 tidak merusak visual rasio
+            values_radar = [
+                (screen/15)*100, (phone/180)*100, (sleep/12)*100, 
+                quality, (coffee/10)*100, (physical/180)*100, 
+                (notif/300)*100, fatigue
+            ]
+            values_original = [screen, phone, sleep, quality, coffee, physical, notif, fatigue]
+
+            with vis_col1:
+                st.markdown("<div style='text-align: center; font-weight: bold;'>Radar Chart (Skala Relatif %)</div>", unsafe_allow_html=True)
+                fig_radar = go.Figure()
+                fig_radar.add_trace(go.Scatterpolar(
+                    r=values_radar,
+                    theta=features,
+                    fill='toself',
+                    fillcolor='rgba(75, 108, 183, 0.3)',
+                    line=dict(color='#4b6cb7', width=2)
+                ))
+                fig_radar.update_layout(
+                    polar=dict(
+                        radialaxis=dict(visible=True, range=[0, 100], gridcolor="#2d2d44"),
+                        angularaxis=dict(gridcolor="#2d2d44")
+                    ),
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#182848'),
+                    margin=dict(l=50, r=50, t=30, b=30)
                 )
-            ))
-            fig_bar.update_layout(
-                paper_bgcolor='#1e1e2f',
-                plot_bgcolor='#1e1e2f',
-                font=dict(color='#ffffff'),
-                xaxis=dict(gridcolor='#44445c', tickangle=-25),
-                yaxis=dict(gridcolor='#44445c'),
-                margin=dict(t=40, b=40, l=40, r=40),
-                title=dict(text="Bar Chart Distribusi Nilai Fitur", x=0.5, font=dict(size=16))
-            )
-            st.plotly_chart(fig_bar, use_container_width=True)
+                st.plotly_chart(fig_radar, use_container_width=True)
 
-        # =====================================================
-        # FITUR BARU 3: INSIGHT HASIL PREDIKSI (OTOMATIS BERDASARKAN ATURAN)
-        # =====================================================
-        st.markdown("---")
-        st.markdown("### 💡 Insight Hasil Prediksi")
-        
-        insights = []
-        if lp["screen"] > 8:
-            insights.append("📱 **Screen time yang tinggi** dapat meningkatkan risiko kelelahan mental.")
-        if lp["sleep"] < 7:
-            insights.append("🛌 **Durasi tidur** masih kurang dari rekomendasi ideal (7-8 jam).")
-        if lp["quality"] < 60:
-            insights.append("📉 **Kualitas tidur** Anda tergolong rendah, tubuh kurang beristirahat sempurna.")
-        if lp["fatigue"] > 70:
-            insights.append("🧠 **Tingkat kelelahan mental** Anda saat ini cukup tinggi.")
-        if lp["physical"] < 45:
-            insights.append("🏃‍♂️ **Aktivitas fisik** masih rendah. Tubuh membutuhkan stimulasi endorfin.")
-        if lp["notif"] > 100:
-            insights.append("🔔 **Jumlah notifikasi yang tinggi** berpotensi besar mengganggu fokus dan ketenangan.")
-        if lp["phone"] > 45:
-            insights.append("🌙 **Penggunaan HP sebelum tidur** cukup tinggi, mengganggu sekresi melatonin.")
-            
-        if insights:
-            # Tampilan dalam komponen bergaya card dark-mode
-            insight_html = "".join([f"<li style='margin-bottom:10px;'>{ins}</li>" for ins in insights])
-            st.markdown(f"""
-                <div class="stressio-card">
-                    <h4 style="color:#4b6cb7; margin-top:0;">🔍 Temuan Kunci Analisis:</h4>
-                    <ul style="padding-left:20px; margin-bottom:0;">
-                        {insight_html}
-                    </ul>
-                </div>
-            """, unsafe_allow_html=True)
-        else:
-            st.info("✅ Gaya hidup Anda ideal secara metrik harian. Tidak ditemukan parameter kritis!")
+            with vis_col2:
+                st.markdown("<div style='text-align: center; font-weight: bold;'>Bar Chart (Nilai Aktual Komponen)</div>", unsafe_allow_html=True)
+                fig_bar = go.Figure(go.Bar(
+                    x=values_original,
+                    y=features,
+                    orientation='h',
+                    marker=dict(color='#4b6cb7', line=dict(color='#182848', width=1))
+                ))
+                fig_bar.update_layout(
+                    paper_bgcolor='rgba(0,0,0,0)',
+                    plot_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(gridcolor="#e0e0e0"),
+                    margin=dict(l=50, r=50, t=30, b=30)
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
 
-        # =====================================================
-        # FITUR BARU 4: REKOMENDASI BERDASARKAN KATEGORI
-        # =====================================================
-        st.markdown("---")
-        st.markdown("### 🎯 Rekomendasi Pemulihan")
-        
-        if kategori_murni == "Rendah":
-            st.markdown("""
-                <div class="stressio-card" style="border-left: 6px solid #28a745;">
-                    <h4 style="color:#28a745; margin-top:0;">😊 Kategori Stres: RENDAH</h4>
-                    <p>Pertahankan ritme harian Anda dengan langkah berikut:</p>
-                    <ul>
-                        <li>✨ Pertahankan pola tidur sehat yang sudah berjalan.</li>
-                        <li>🏋️ Tetap rutin berolahraga untuk menjaga kebugaran sel tubuh.</li>
-                        <li>🛑 Batasi screen time agar terhindar dari kelelahan mata mendadak.</li>
-                    </ul>
-                </div>
-            """, unsafe_allow_html=True)
+            # =====================================================
+            # FITUR BARU: WORKPLACE INSIGHT AUTOMATION
+            # =====================================================
+            st.markdown("### 🔍 Workplace Insight with Stressio")
+            st.markdown("<div class='stressio-card'>", unsafe_allow_html=True)
+            st.markdown("<h4 class='stressio-header'>💡 Insight Hasil Prediksi</h4>", unsafe_allow_html=True)
             
-        elif kategori_murni == "Sedang":
-            st.markdown("""
-                <div class="stressio-card" style="border-left: 6px solid #ffc107;">
-                    <h4 style="color:#ffc107; margin-top:0;">😐 Kategori Stres: SEDANG</h4>
-                    <p>Segera lakukan penyesuaian kecil sebelum kelelahan menumpuk:</p>
-                    <ul>
-                        <li>📉 Kurangi screen time secara sadar di sela aktivitas pekerjaan.</li>
-                        <li>🛌 Upayakan tidur minimal 7 jam pada malam hari ini.</li>
-                        <li>🧘 Luangkan waktu 10-15 menit khusus untuk relaksasi atau pernapasan dalam.</li>
-                        <li>📴 Kurangi penggunaan HP minimal 30 menit sebelum tidur.</li>
-                    </ul>
-                </div>
-            """, unsafe_allow_html=True)
-            
-        else:  # Tinggi
-            st.markdown("""
-                <div class="stressio-card" style="border-left: 6px solid #dc3545;">
-                    <h4 style="color:#dc3545; margin-top:0;">😟 Kategori Stres: TINGGI</h4>
-                    <p>Tubuh Anda memberikan sinyal darurat. Lakukan tindakan segera:</p>
-                    <ul>
-                        <li>🛑 <b>Tingkatkan kualitas tidur:</b> Pastikan kamar gelap dan tenang.</li>
-                        <li>📉 Kurangi screen time secara bertahap dan buat batasan ketat.</li>
-                        <li>🔕 Batasi atau senapkan (mute) notifikasi aplikasi yang tidak mendesak.</li>
-                        <li>🏃‍♂️ Lakukan aktivitas fisik ringan/peregangan minimal 30 menit demi sirkulasi darah.</li>
-                        <li>💼 Luangkan waktu penuh untuk beristirahat dan putuskan koneksi dari pekerjaan sejenak.</li>
-                        <li>🩺 <i>Jika kondisi ini berlangsung lama atau memburuk, sangat dianjurkan berkonsultasi dengan tenaga profesional kesehatan mental.</i></li>
-                    </ul>
-                </div>
-            """, unsafe_allow_html=True)
+            insight_found = False
+            if screen > 8:
+                st.info("📱 **Screen time** yang tinggi dapat meningkatkan risiko kelelahan mental.")
+                insight_found = True
+            if sleep < 7:
+                st.warning("🛌 **Durasi tidur** masih kurang dari rekomendasi umum.")
+                insight_found = True
+            if quality < 60:
+                st.error("📉 **Kualitas tidur** tergolong rendah.")
+                insight_found = True
+            if fatigue > 70:
+                st.error("🧠 Tingkat **kelelahan mental** cukup tinggi.")
+                insight_found = True
+            if physical < 45:
+                st.info("🏃 **Aktivitas fisik** masih rendah.")
+                insight_found = True
+            if notif > 100:
+                st.warning("🔔 Jumlah **notifikasi** yang tinggi dapat mengganggu fokus.")
+                insight_found = True
+            if phone > 45:
+                st.warning("🌙 Penggunaan **HP sebelum tidur** cukup tinggi.")
+                insight_found = True
+                
+            if not insight_found:
+                st.success("✨ Semua komponen kebiasaan harian Anda berada di parameter ideal dan sehat!")
+            st.markdown("</div>", unsafe_allow_html=True)
 
-        # =====================================================
-        # FITUR BARU 1 (LANJUTAN): TABEL RIWAYAT PREDIKSI
-        # =====================================================
-        st.markdown("---")
-        st.markdown("### 📜 Riwayat Prediksi Pengguna")
-        
-        if st.session_state.prediction_history:
-            df_history = pd.DataFrame(st.session_state.prediction_history)
-            st.dataframe(df_history, use_container_width=True, hide_index=True)
+            # =====================================================
+            # FITUR BARU: REKOMENDASI BERDASARKAN KATEGORI
+            # =====================================================
+            st.markdown("<div class='stressio-card'>", unsafe_allow_html=True)
+            st.markdown(f"<h4 class='stressio-header'>🎯 Rekomendasi Khusus</h4>", unsafe_allow_html=True)
             
-            # Tombol untuk mengosongkan riwayat prediksi
-            if st.button("🗑️ Hapus Riwayat", type="secondary"):
-                st.session_state.prediction_history = []
-                st.rerun()
-        else:
-            st.info("Belum ada riwayat pemeriksaan. Silakan tekan tombol analisis di atas.")
+            if kat_murni == "Rendah":
+                st.markdown("""
+                * 🟢 **Pertahankan pola tidur** yang konsisten.
+                * 🟢 **Tetap rutin berolahraga** untuk menjaga kebugaran sel saraf.
+                * 🟢 **Batasi screen time** agar terhindar dari akumulasi stres mendadak.
+                """)
+            elif kat_murni == "Sedang":
+                st.markdown("""
+                * 🟡 **Kurangi screen time** di sela-sela waktu istirahat kerja.
+                * 🟡 **Tidur minimal 7 jam** untuk pemulihan sistem metabolisme.
+                * 🟡 **Luangkan waktu untuk relaksasi** (mindfulness/meditasi ringan).
+                * 🟡 **Kurangi penggunaan HP sebelum tidur** demi kualitas sirkadian optimal.
+                """)
+            elif kat_murni == "Tinggi":
+                st.markdown("""
+                * 🔴 **Tingkatkan kualitas tidur** dengan mematikan paparan cahaya lampu kamar.
+                * 🔴 **Kurangi screen time secara bertahap** melalui penjadwalan ketat.
+                * 🔴 **Batasi notifikasi** yang tidak penting atau gunakan profil senyap kerja.
+                * 🔴 **Lakukan aktivitas fisik minimal 30 menit** guna melepaskan endorfin.
+                * 🔴 **Luangkan waktu untuk istirahat dari pekerjaan** atau tugas akademis.
+                * ⚠️ *Jika kondisi berlangsung lama, pertimbangkan berkonsultasi dengan tenaga profesional.*
+                """)
+            st.markdown("</div>", unsafe_allow_html=True)
+
+    # =====================================================
+    # FITUR BARU: TABEL RIWAYAT PENYIMPANAN DATA (SESSION STATE)
+    # =====================================================
+    st.markdown("---")
+    st.markdown("### 📜 Riwayat Analisis Pengguna")
+    
+    if st.session_state.riwayat_prediksi:
+        df_riwayat = pd.DataFrame(st.session_state.riwayat_prediksi)
+        st.dataframe(df_riwayat, use_container_width=True)
+        
+        if st.button("🗑️ Hapus Riwayat", type="secondary"):
+            st.session_state.riwayat_prediksi = []
+            st.rerun()
+    else:
+        st.info("Belum ada data pemeriksaan terekam pada sesi ini.")
 
 # =====================================================
 # TAB 2: CEK RASIO DIGITAL (KALKULATOR)
 # =====================================================
 with tab2:
     st.subheader("🔍 Kalkulator Rasio Gawai vs Tidur")
-    # Menggunakan session state jika sudah ada input agar nilainya sinkron
-    s_time = st.session_state["last_pred"]["screen"] if "last_pred" in st.session_state else screen
-    sl_time = st.session_state["last_pred"]["sleep"] if "last_pred" in st.session_state else sleep
-    
-    current_ratio = s_time / sl_time if sl_time > 0 else 0
+    current_ratio = screen / sleep if sleep > 0 else 0
     st.write(f"Rasio penggunaan gadget berbanding durasi istirahat Anda saat ini: **{current_ratio:.2f}**")
     
     if current_ratio <= 1.0:

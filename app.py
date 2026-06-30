@@ -360,65 +360,65 @@ with tab1:
             # WORKPLACE INSIGHT AUTOMATION
             # =====================================================
             st.markdown("### 🔍 Workplace Insight with Stressio")
-            st.markdown("<div class='stressio-card'>", unsafe_allow_html=True)
-            st.markdown("<h4 class='stressio-header'>💡 Insight Hasil Prediksi</h4>", unsafe_allow_html=True)
             
-            insight_found = False
-            if screen > 8:
-                st.info("📱 **Screen time** yang tinggi dapat meningkatkan risiko kelelahan mental.")
-                insight_found = True
-            if sleep < 7:
-                st.warning("🛌 **Durasi tidur** masih kurang dari rekomendasi umum.")
-                insight_found = True
-            if quality < 60:
-                st.error("📉 **Kualitas tidur** tergolong rendah.")
-                insight_found = True
-            if fatigue > 70:
-                st.error("🧠 Tingkat **kelelahan mental** cukup tinggi.")
-                insight_found = True
-            if physical < 45:
-                st.info("🏃 **Aktivitas fisik** masih rendah.")
-                insight_found = True
-            if notif > 100:
-                st.warning("🔔 Jumlah **notifikasi** yang tinggi dapat mengganggu fokus.")
-                insight_found = True
-            if phone > 45:
-                st.warning("🌙 Penggunaan **HP sebelum tidur** cukup tinggi.")
-                insight_found = True
+            # Menggunakan st.container dengan border=True agar serasi dengan tema dark mode tanpa bug HTML
+            with st.container(border=True):
+                st.markdown("<h4 style='color: #4b6cb7; font-weight: bold; margin-bottom: 15px;'>💡 Insight Hasil Prediksi</h4>", unsafe_allow_html=True)
                 
-            if not insight_found:
-                st.success("✨ Semua komponen kebiasaan harian Anda berada di parameter ideal dan sehat!")
-            st.markdown("</div>", unsafe_allow_html=True)
+                insight_found = False
+                if screen > 8:
+                    st.info("📱 **Screen time** yang tinggi dapat meningkatkan risiko kelelahan mental.")
+                    insight_found = True
+                if sleep < 7:
+                    st.warning("🛌 **Durasi tidur** masih kurang dari rekomendasi umum.")
+                    insight_found = True
+                if quality < 60:
+                    st.error("📉 **Kualitas tidur** tergolong rendah.")
+                    insight_found = True
+                if fatigue > 70:
+                    st.error("🧠 Tingkat **kelelahan mental** cukup tinggi.")
+                    insight_found = True
+                if physical < 45:
+                    st.info("🏃 **Aktivitas fisik** masih rendah.")
+                    insight_found = True
+                if notif > 100:
+                    st.warning("🔔 Jumlah **notifikasi** yang tinggi dapat mengganggu fokus.")
+                    insight_found = True
+                if phone > 45:
+                    st.warning("🌙 Penggunaan **HP sebelum tidur** cukup tinggi.")
+                    insight_found = True
+                    
+                if not insight_found:
+                    st.success("✨ Semua komponen kebiasaan harian Anda berada di parameter ideal dan sehat!")
 
             # =====================================================
             # REKOMENDASI BERDASARKAN KATEGORI
             # =====================================================
-            st.markdown("<div class='stressio-card'>", unsafe_allow_html=True)
-            st.markdown(f"<h4 class='stressio-header'>🎯 Rekomendasi Khusus</h4>", unsafe_allow_html=True)
-            
-            if kat_murni == "Rendah":
-                st.markdown("""
-                * 🟢 **Pertahankan pola tidur** yang konsisten.
-                * 🟢 **Tetap rutin berolahraga** untuk menjaga kebugaran sel saraf.
-                * 🟢 **Batasi screen time** agar terhindar dari akumulasi stres mendadak.
-                """)
-            elif kat_murni == "Sedang":
-                st.markdown("""
-                * 🟡 **Kurangi screen time** di sela-sela waktu istirahat kerja.
-                * 🟡 **Tidur minimal 7 jam** untuk pemulihan sistem metabolisme.
-                * 🟡 **Luangkan waktu untuk relaksasi** (mindfulness/meditasi ringan).
-                * 🟡 **Kurangi penggunaan HP sebelum tidur** demi kualitas sirkadian optimal.
-                """)
-            elif kat_murni == "Tinggi":
-                st.markdown("""
-                * 🔴 **Tingkatkan kualitas tidur** dengan mematikan paparan cahaya lampu kamar.
-                * 🔴 **Kurangi screen time secara bertahap** melalui penjadwalan ketat.
-                * 🔴 **Batasi notifikasi** yang tidak penting atau gunakan profil senyap kerja.
-                * 🔴 **Lakukan aktivitas fisik minimal 30 menit** guna melepaskan endorfin.
-                * 🔴 **Luangkan waktu untuk istirahat dari pekerjaan** atau tugas akademis.
-                * ⚠️ *Jika kondisi berlangsung lama, pertimbangkan berkonsultasi dengan tenaga profesional.*
-                """)
-            st.markdown("</div>", unsafe_allow_html=True)
+            with st.container(border=True):
+                st.markdown(f"<h4 style='color: #4b6cb7; font-weight: bold; margin-bottom: 15px;'>🎯 Rekomendasi Khusus (Kategori: {kat_murni})</h4>", unsafe_allow_html=True)
+                
+                if kat_murni == "Rendah":
+                    st.markdown("""
+                    * 🟢 **Pertahankan pola tidur** yang konsisten.
+                    * 🟢 **Tetap rutin berolahraga** untuk menjaga kebugaran sel saraf.
+                    * 🟢 **Batasi screen time** agar terhindar dari akumulasi stres mendadak.
+                    """)
+                elif kat_murni == "Sedang":
+                    st.markdown("""
+                    * 🟡 **Kurangi screen time** di sela-sela waktu istirahat kerja.
+                    * 🟡 **Tidur minimal 7 jam** untuk pemulihan sistem metabolisme.
+                    * 🟡 **Luangkan waktu untuk relaksasi** (mindfulness/meditasi ringan).
+                    * 🟡 **Kurangi penggunaan HP sebelum tidur** demi kualitas sirkadian optimal.
+                    """)
+                elif kat_murni == "Tinggi":
+                    st.markdown("""
+                    * 🔴 **Tingkatkan kualitas tidur** dengan mematikan paparan cahaya lampu kamar.
+                    * 🔴 **Kurangi screen time secara bertahap** melalui penjadwalan ketat.
+                    * 🔴 **Batasi notifikasi** yang tidak penting atau gunakan profil senyap kerja.
+                    * 🔴 **Lakukan aktivitas fisik minimal 30 menit** guna melepaskan endorfin.
+                    * 🔴 **Luangkan waktu untuk istirahat dari pekerjaan** atau tugas akademis.
+                    * ⚠️ *Jika kondisi berlangsung lama, pertimbangkan berkonsultasi dengan tenaga profesional.*
+                    """)
 
     # =====================================================
     # TABEL RIWAYAT PENYIMPANAN DATA (SESSION STATE)

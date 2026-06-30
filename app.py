@@ -2,9 +2,9 @@ import streamlit as st
 import pandas as pd
 import joblib
 from datetime import datetime
-import io  # Tambahan untuk manajemen binary data PDF
-import plotly.graph_objects as go  # Tambahan untuk visualisasi Plotly
-from weasyprint import HTML  # Tambahan untuk engine konverter HTML ke PDF
+import io
+import plotly.graph_objects as go
+from fpdf import FPDF  # Mengganti weasyprint dengan fpdf2
 
 # =====================================================
 # Load Model & Scaler
@@ -21,13 +21,13 @@ except Exception as e:
     st.error(f"Gagal memuat model/scaler. Pastikan file tersedia. Error: {e}")
 
 # =====================================================
-# INSIALISASI SESSION STATE (FITUR BARU RIWAYAT)
+# INSIALISASI SESSION STATE (FITUR RIWAYAT)
 # =====================================================
 if "riwayat_prediksi" not in st.session_state:
     st.session_state.riwayat_prediksi = []
 
 # =====================================================
-# Konfigurasi Halaman & Suntikan Custom CSS
+# Konfigurasi Halaman & Custom CSS
 # =====================================================
 st.set_page_config(
     page_title="Stress Level Analyzer",
@@ -55,7 +55,6 @@ st.markdown("""
         font-size: 36px;
         font-weight: 800;
     }
-    /* Style komponen baru ala Stressio */
     .stressio-card {
         background-color: #1e1e2f;
         padding: 20px;
@@ -112,7 +111,7 @@ tab1, tab2, tab3, tab4 = st.tabs([
 ])
 
 # =====================================================
-# TAB 1: PREDIKSI STRES & DOWNLOAD REPORT (PDF INTEGRATED)
+# TAB 1: PREDIKSI STRES & DOWNLOAD REPORT
 # =====================================================
 with tab1:
     st.subheader("📝 Pengisian Data Aktivitas Harian")
@@ -141,7 +140,6 @@ with tab1:
 
     st.markdown("---")
 
-    # Wadah container utama untuk hasil analisis pasca tombol ditekan
     output_container = st.container()
 
     if st.button("🔍 Mulai Analisis Tingkat Stress", use_container_width=True):
@@ -188,34 +186,28 @@ with tab1:
 
             warna_box(f"Berdasarkan analisis model AI, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
 
-            # Rekomendasi Dinamis untuk Pemicu Laporan
             st.markdown("#### 🛠️ Rekomendasi Personalisasi:")
             saran_list = []
-            html_saran = ""
             
             if coffee > 4:
-                msg = "Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak dan memicu kecemasan."
+                msg = "Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak."
                 st.warning(f"⚠️ {msg}")
-                saran_list.append(f"- {msg}")
-                html_saran += f"<li>⚠️ {msg}</li>"
+                saran_list.append(msg)
             if phone > 60:
                 msg = "Kurangi Screen-Time Malam: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh."
                 st.warning(f"⚠️ {msg}")
-                saran_list.append(f"- {msg}")
-                html_saran += f"<li>⚠️ {msg}</li>"
+                saran_list.append(msg)
             if physical < 20:
-                msg = "Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan agar hormon endorfin keluar."
+                msg = "Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan."
                 st.info(f"💡 {msg}")
-                saran_list.append(f"- {msg}")
-                html_saran += f"<li>💡 {msg}</li>"
+                saran_list.append(msg)
                 
             if not saran_list:
                 msg = "Pola hidup Anda saat ini sudah sangat seimbang! Pertahankan rutinitas baik ini."
                 st.success(f"✅ {msg}")
-                saran_list.append(f"- {msg}")
-                html_saran += f"<li>✅ {msg}</li>"
+                saran_list.append(msg)
 
-            # 1. SIMPAN DATA KE RIWAYAT SESSION STATE
+            # 1. Simpan ke Riwayat State
             waktu_sekarang = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
             data_riwayat = {
                 "Waktu": waktu_sekarang,
@@ -229,116 +221,96 @@ with tab1:
             }
             st.session_state.riwayat_prediksi.append(data_riwayat)
 
-            # 2. PROSES PEMBUATAN LAPORAN PDF (INTEGRASI WEASYPRINT & HTML)
-            html_report = f"""
-            <!DOCTYPE html>
-            <html>
-            <head>
-            <meta charset="utf-8">
-            <style>
-                @page {{
-                    size: A4;
-                    margin: 20mm 15mm;
-                    background-color: #1e1e2f;
-                }}
-                body {{
-                    font-family: 'Helvetica Neue', Arial, sans-serif;
-                    color: #ffffff;
-                    background-color: #1e1e2f;
-                    margin: 0; padding: 0;
-                }}
-                .header {{
-                    border-bottom: 2px solid #4b6cb7;
-                    padding-bottom: 12px; margin-bottom: 20px;
-                }}
-                .title {{ font-size: 24pt; font-weight: bold; color: #4b6cb7; text-transform: uppercase; letter-spacing: 1px; }}
-                .meta-box {{ background-color: #2d2d44; border-radius: 8px; padding: 15px; margin-bottom: 25px; }}
-                .meta-table {{ width: 100%; border-collapse: collapse; }}
-                .meta-table td {{ padding: 6px; font-size: 10pt; }}
-                .meta-label {{ color: #a0a0b0; font-weight: bold; width: 30%; }}
-                .section-title {{ font-size: 14pt; color: #4b6cb7; border-left: 4px solid #4b6cb7; padding-left: 8px; margin: 25px 0 12px 0; font-weight: bold; }}
-                .metric-table {{ width: 100%; border-collapse: collapse; }}
-                .metric-table th {{ background-color: #4b6cb7; color: white; padding: 10px; font-size: 10pt; text-align: left; }}
-                .metric-table td {{ padding: 10px; border-bottom: 1px solid #2d2d44; font-size: 10pt; }}
-                .metric-table tr:nth-child(even) {{ background-color: #252538; }}
-                .badge {{ background-color: #ff4d4d; color: white; padding: 4px 10px; border-radius: 4px; font-weight: bold; }}
-                .recommendation-box {{ background-color: #252538; padding: 15px; border-radius: 8px; font-size: 10pt; line-height: 1.6; }}
-                .recommendation-box ul {{ margin: 0; padding-left: 20px; }}
-                .footer {{ margin-top: 50px; text-align: center; font-size: 8.5pt; color: #a0a0b0; border-top: 1px solid #2d2d44; padding-top: 15px; }}
-            </style>
-            </head>
-            <body>
-                <div class="header">
-                    <div class="title">Official Medical Report</div>
-                    <div style="color: #a0a0b0; font-size: 11pt; margin-top: 5px;">Stress Level Analyzer & Health Dashboard</div>
-                </div>
+            # 2. GENERATE PDF MENGGUNAKAN FPDF2 (Aman dari OSError)
+            class DI_PDF(FPDF):
+                def header(self):
+                    self.set_fill_color(30, 30, 47) # Dark theme background
+                    self.rect(0, 0, 210, 297, "F")
+                    self.set_text_color(75, 108, 183)
+                    self.set_font("Arial", "B", 18)
+                    self.cell(0, 10, "OFFICIAL MEDICAL REPORT", ln=1, align="L")
+                    self.set_font("Arial", "", 10)
+                    self.set_text_color(160, 160, 176)
+                    self.cell(0, 5, "Stress Level Analyzer & Health Dashboard", ln=1, align="L")
+                    self.set_draw_color(75, 108, 183)
+                    self.line(10, 28, 200, 28)
+                    self.ln(8)
 
-                <div class="meta-box">
-                    <table class="meta-table">
-                        <tr>
-                            <td class="meta-label">Waktu Pemeriksaan</td>
-                            <td>: {waktu_sekarang}</td>
-                            <td class="meta-label">Skor Prediksi Stres</td>
-                            <td>: <strong style="color: #ff4d4d;">{pred:.2f} / 10.00</strong></td>
-                        </tr>
-                        <tr>
-                            <td class="meta-label">Status Prediksi</td>
-                            <td>: SELESAI</td>
-                            <td class="meta-label">Kategori Stres</td>
-                            <td>: <span class="badge">{kat_murni.upper()}</span></td>
-                        </tr>
-                    </table>
-                </div>
+            pdf = DI_PDF()
+            pdf.add_page()
+            
+            # Metadata Box
+            pdf.set_fill_color(45, 45, 68)
+            pdf.rect(10, 32, 190, 25, "F")
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "", 9)
+            pdf.set_xy(12, 34)
+            pdf.cell(95, 6, f"Waktu Pemeriksaan: {waktu_sekarang}")
+            pdf.cell(95, 6, f"Skor Prediksi Stres: {pred:.2f} / 10.00", ln=1)
+            pdf.set_x(12)
+            pdf.cell(95, 6, "Status Prediksi: SELESAI")
+            pdf.cell(95, 6, f"Kategori Stres: {kat_murni.upper()}", ln=1)
 
-                <div class="section-title">Ringkasan Metrik Aktivitas</div>
-                <table class="metric-table">
-                    <thead>
-                        <tr>
-                            <th>Komponen Komparasi Kesehatan</th>
-                            <th>Nilai Input Pengguna</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr><td>Usia / Jenis Kelamin</td><td>{age} Tahun / {gender_map[gender]}</td></tr>
-                        <tr><td>Bidang Pekerjaan</td><td>{occupation_map[occupation]}</td></tr>
-                        <tr><td>Durasi Layar harian (Screen Time)</td><td>{screen} Jam / Hari</td></tr>
-                        <tr><td>Interaksi Gawai Pra-Tidur</td><td>{phone} Menit</td></tr>
-                        <tr><td>Durasi & Efisiensi Tidur</td><td>{sleep} Jam (Skor Kualitas: {quality}/100)</td></tr>
-                        <tr><td>Rasio Paparan Layar vs Istirahat</td><td>{ratio:.2f}</td></tr>
-                        <tr><td>Intake Kafein Harian</td><td>{coffee} Gelas / Hari</td></tr>
-                        <tr><td>Alokasi Aktivitas Fisik</td><td>{physical} Menit / Hari</td></tr>
-                        <tr><td>Skor Kelelahan Saraf Kognitif</td><td>{fatigue} / 100</td></tr>
-                    </tbody>
-                </table>
+            # Table Header
+            pdf.ln(10)
+            pdf.set_font("Arial", "B", 11)
+            pdf.set_text_color(75, 108, 183)
+            pdf.cell(0, 8, "Ringkasan Metrik Aktivitas", ln=1)
+            
+            pdf.set_fill_color(75, 108, 183)
+            pdf.set_text_color(255, 255, 255)
+            pdf.set_font("Arial", "B", 10)
+            pdf.cell(110, 8, " Komponen Komparasi Kesehatan", fill=True)
+            pdf.cell(80, 8, " Nilai Input Pengguna", fill=True, ln=1)
+            
+            # Table Content
+            pdf.set_font("Arial", "", 9)
+            metrics_data = [
+                ("Usia / Jenis Kelamin", f"{age} Tahun / {gender_map[gender]}"),
+                ("Bidang Pekerjaan", f"{occupation_map[occupation]}"),
+                ("Durasi Layar harian (Screen Time)", f"{screen} Jam / Hari"),
+                ("Interaksi Gawai Pra-Tidur", f"{phone} Menit"),
+                ("Durasi & Kualitas Tidur", f"{sleep} Jam (Skor Kualitas: {quality}/100)"),
+                ("Intake Kafein Harian", f"{coffee} Gelas / Hari"),
+                ("Alokasi Aktivitas Fisik", f"{physical} Menit / Hari"),
+                ("Skor Kelelahan Saraf Kognitif", f"{fatigue} / 100")
+            ]
+            
+            toggle_bg = False
+            for item, val in metrics_data:
+                if toggle_bg: pdf.set_fill_color(37, 37, 56)
+                else: pdf.set_fill_color(30, 30, 47)
+                pdf.set_text_color(230, 230, 230)
+                pdf.cell(110, 7, f" {item}", fill=True)
+                pdf.cell(80, 7, f" {val}", fill=True, ln=1)
+                toggle_bg = not toggle_bg
 
-                <div class="section-title">Workplace Insight & Saran Tim Medis</div>
-                <div class="recommendation-box">
-                    <ul>{html_saran}</ul>
-                </div>
+            # Recommendations
+            pdf.ln(8)
+            pdf.set_font("Arial", "B", 11)
+            pdf.set_text_color(75, 108, 183)
+            pdf.cell(0, 8, "Saran Tambahan Tim Medis AI", ln=1)
+            pdf.set_font("Arial", "", 9)
+            pdf.set_fill_color(37, 37, 56)
+            
+            for s in saran_list:
+                pdf.set_text_color(220, 220, 220)
+                pdf.multi_cell(0, 6, f" {s}", fill=True)
+                pdf.ln(1)
 
-                <div class="footer">
-                    Laporan evaluasi psikometrik digital ini diekstrak otomatis oleh Stress Level Analyzer.<br>
-                    Tim Akademis NBI: 1462400044, 1462400072, 14624000104, 1462400178.
-                </div>
-            </body>
-            </html>
-            """
-            # Pemrosesan konversi HTML ke berkas biner PDF via byte buffer
-            pdf_buffer = io.BytesIO()
-            HTML(string=html_report).write_pdf(pdf_buffer)
-            pdf_data = pdf_buffer.getvalue()
-
+            pdf_output = pdf.output()
+            
             st.markdown("---")
             st.download_button(
                 label="📥 Unduh Laporan Resmi Hasil Pemeriksaan (.pdf)",
-                data=pdf_data,
+                data=bytes(pdf_output),
                 file_name=f"Laporan_Resmi_Stres_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
                 mime="application/pdf",
                 use_container_width=True
             )
 
             # =====================================================
-            # FITUR BARU: VISUALISASI INTERAKTIF PLOTLY
+            # VISUALISASI INTERAKTIF PLOTLY
             # =====================================================
             st.markdown("### 📊 Visualisasi Profil Kesehatan Anda")
             vis_col1, vis_col2 = st.columns(2)
@@ -348,7 +320,6 @@ with tab1:
                 'Sleep Quality', 'Caffeine Intake', 'Physical Activity', 
                 'Notifications/Day', 'Mental Fatigue'
             ]
-            # Normalisasi seimbang khusus radar chart agar skala 0-100 tidak merusak visual rasio
             values_radar = [
                 (screen/15)*100, (phone/180)*100, (sleep/12)*100, 
                 quality, (coffee/10)*100, (physical/180)*100, 
@@ -360,42 +331,33 @@ with tab1:
                 st.markdown("<div style='text-align: center; font-weight: bold;'>Radar Chart (Skala Relatif %)</div>", unsafe_allow_html=True)
                 fig_radar = go.Figure()
                 fig_radar.add_trace(go.Scatterpolar(
-                    r=values_radar,
-                    theta=features,
-                    fill='toself',
-                    fillcolor='rgba(75, 108, 183, 0.3)',
-                    line=dict(color='#4b6cb7', width=2)
+                    r=values_radar, theta=features, fill='toself',
+                    fillcolor='rgba(75, 108, 183, 0.3)', line=dict(color='#4b6cb7', width=2)
                 ))
                 fig_radar.update_layout(
                     polar=dict(
                         radialaxis=dict(visible=True, range=[0, 100], gridcolor="#2d2d44"),
                         angularaxis=dict(gridcolor="#2d2d44")
                     ),
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    font=dict(color='#182848'),
-                    margin=dict(l=50, r=50, t=30, b=30)
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    font=dict(color='#182848'), margin=dict(l=50, r=50, t=30, b=30)
                 )
                 st.plotly_chart(fig_radar, use_container_width=True)
 
             with vis_col2:
                 st.markdown("<div style='text-align: center; font-weight: bold;'>Bar Chart (Nilai Aktual Komponen)</div>", unsafe_allow_html=True)
                 fig_bar = go.Figure(go.Bar(
-                    x=values_original,
-                    y=features,
-                    orientation='h',
+                    x=values_original, y=features, orientation='h',
                     marker=dict(color='#4b6cb7', line=dict(color='#182848', width=1))
                 ))
                 fig_bar.update_layout(
-                    paper_bgcolor='rgba(0,0,0,0)',
-                    plot_bgcolor='rgba(0,0,0,0)',
-                    xaxis=dict(gridcolor="#e0e0e0"),
-                    margin=dict(l=50, r=50, t=30, b=30)
+                    paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)',
+                    xaxis=dict(gridcolor="#e0e0e0"), margin=dict(l=50, r=50, t=30, b=30)
                 )
                 st.plotly_chart(fig_bar, use_container_width=True)
 
             # =====================================================
-            # FITUR BARU: WORKPLACE INSIGHT AUTOMATION
+            # WORKPLACE INSIGHT AUTOMATION
             # =====================================================
             st.markdown("### 🔍 Workplace Insight with Stressio")
             st.markdown("<div class='stressio-card'>", unsafe_allow_html=True)
@@ -429,7 +391,7 @@ with tab1:
             st.markdown("</div>", unsafe_allow_html=True)
 
             # =====================================================
-            # FITUR BARU: REKOMENDASI BERDASARKAN KATEGORI
+            # REKOMENDASI BERDASARKAN KATEGORI
             # =====================================================
             st.markdown("<div class='stressio-card'>", unsafe_allow_html=True)
             st.markdown(f"<h4 class='stressio-header'>🎯 Rekomendasi Khusus</h4>", unsafe_allow_html=True)
@@ -459,7 +421,7 @@ with tab1:
             st.markdown("</div>", unsafe_allow_html=True)
 
     # =====================================================
-    # FITUR BARU: TABEL RIWAYAT PENYIMPANAN DATA (SESSION STATE)
+    # TABEL RIWAYAT PENYIMPANAN DATA (SESSION STATE)
     # =====================================================
     st.markdown("---")
     st.markdown("### 📜 Riwayat Analisis Pengguna")

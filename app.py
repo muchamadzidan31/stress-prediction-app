@@ -158,54 +158,55 @@ with tab1:
         pred = model.predict(data_scaled)[0]
 
         with output_container:
-            st.container(border=True)
-            st.markdown("### 📊 Hasil Analisis Tingkat Stres")
-            
-            if pred < 4.0:
-                kategori = "Rendah 😊"
-                warna_box = st.success
-                delta_info = "Kondisi Anda aman!"
-                kat_murni = "Rendah"
-            elif pred < 7.0:
-                kategori = "Sedang 😐"
-                warna_box = st.warning
-                delta_info = "Perlu waspada & relaksasi."
-                kat_murni = "Sedang"
-            else:
-                kategori = "Tinggi 😟"
-                warna_box = st.error
-                delta_info = "Butuh istirahat segera!"
-                kat_murni = "Tinggi"
-
-            res_col1, res_col2 = st.columns(2)
-            with res_col1:
-                st.metric(label="Skor Prediksi Stres (Skala 0-10)", value=f"{pred:.2f}")
-                st.progress(min(max(pred / 10.0, 0.0), 1.0))
-            with res_col2:
-                st.metric(label="Kategori Stres Anda", value=kategori, delta=delta_info, delta_color="off")
-
-            warna_box(f"Berdasarkan analisis model AI, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
-
-            st.markdown("#### 🛠️ Rekomendasi Personalisasi:")
-            saran_list = []
-            
-            if coffee > 4:
-                msg = "Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak."
-                st.warning(f"⚠️ {msg}")
-                saran_list.append(msg)
-            if phone > 60:
-                msg = "Kurangi Screen-Time Malam: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh."
-                st.warning(f"⚠️ {msg}")
-                saran_list.append(msg)
-            if physical < 20:
-                msg = "Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan."
-                st.info(f"💡 {msg}")
-                saran_list.append(msg)
+            # PENTING: Membungkus seluruh hasil prediksi ke dalam SATU kontainer yang bersih
+            with st.container(border=True):
+                st.markdown("### 📊 Hasil Analisis Tingkat Stres")
                 
-            if not saran_list:
-                msg = "Pola hidup Anda saat ini sudah sangat seimbang! Pertahankan rutinitas baik ini."
-                st.success(f"✅ {msg}")
-                saran_list.append(msg)
+                if pred < 4.0:
+                    kategori = "Rendah 😊"
+                    warna_box = st.success
+                    delta_info = "Kondisi Anda aman!"
+                    kat_murni = "Rendah"
+                elif pred < 7.0:
+                    kategori = "Sedang 😐"
+                    warna_box = st.warning
+                    delta_info = "Perlu waspada & relaksasi."
+                    kat_murni = "Sedang"
+                else:
+                    kategori = "Tinggi 😟"
+                    warna_box = st.error
+                    delta_info = "Butuh istirahat segera!"
+                    kat_murni = "Tinggi"
+
+                res_col1, res_col2 = st.columns(2)
+                with res_col1:
+                    st.metric(label="Skor Prediksi Stres (Skala 0-10)", value=f"{pred:.2f}")
+                    st.progress(min(max(pred / 10.0, 0.0), 1.0))
+                with res_col2:
+                    st.metric(label="Kategori Stres Anda", value=kategori, delta=delta_info, delta_color="off")
+
+                warna_box(f"Berdasarkan analisis model AI, tingkat stres Anda berada di kategori **{kategori.split()[0]}**.")
+
+                st.markdown("#### 🛠️ Rekomendasi Personalisasi:")
+                saran_list = []
+                
+                if coffee > 4:
+                    msg = "Batasi Kafein: Konsumsi kafein berlebih dapat menaikkan detak jantung mendadak."
+                    st.warning(f"⚠️ {msg}")
+                    saran_list.append(msg)
+                if phone > 60:
+                    msg = "Kurangi Screen-Time Malam: Pancaran sinar biru HP mengacaukan ritme sirkadian tubuh."
+                    st.warning(f"⚠️ {msg}")
+                    saran_list.append(msg)
+                if physical < 20:
+                    msg = "Kurang Aktivitas Fisik: Sempatkan berolahraga ringan atau sekadar peregangan."
+                    st.info(f"💡 {msg}")
+                    saran_list.append(msg)
+                    
+                if not saran_list:
+                    msg = "Pola hidup Anda saat ini sudah sangat seimbang! Pertahankan rutinitas baik ini."
+                    st.success(f"✅ {msg}")
+                    saran_list.append(msg)
 
             # 1. Simpan ke Riwayat State
             waktu_sekarang = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
